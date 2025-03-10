@@ -3,7 +3,7 @@ import { asyncCatch } from "../utils/asyncCatch.js";
 import jwt from "jsonwebtoken";
 
 const generateToken = (userId, res) => {
-  const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
+  const token = jwt.sign(userId, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 
@@ -100,27 +100,59 @@ export const login = asyncCatch(async (req, res) => {
 });
 
 export const logout = asyncCatch(async (req, res) => {
-  // Check if Authorization header exists
-  if (
-    !req.headers.authorization ||
-    !req.headers.authorization.startsWith("Bearer")
-  ) {
-    return res.status(401).json({
-      status: "fail",
-      message: "You are not logged in",
-    });
-  }
-
-  // Clear JWT cookie
-  res.cookie("jwt", "", {
+  res.cookie("jwt", "loggedout", {
     httpOnly: true,
-    expires: new Date(0), // Expire immediately
-    sameSite: "strict", // CSRF protection
-    secure: process.env.NODE_ENV === "production", // HTTPS in production
+    expires: new Date(Date.now() + 10 * 1000), // Expires in 10 sec
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
   });
 
   res.status(200).json({
     status: "success",
     message: "User logged out successfully",
   });
+});
+
+export const getMe = asyncCatch(async (req, res) => {
+  const user = await User.findById(req.user.id);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      user: req.user,
+    },
+  });
+});
+
+export const protect = asyncCatch(async (req, res, next) => {
+  // Check if token exists in cookies
+  const token = req.cookies.jwt;
+  if (!token) {
+    return res
+      .status(401)
+      .json({ status: "fail", message: "You are not logged in" });
+  }
+
+  // Verify token
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+  // Find user
+  const user = await User.findById(decoded.id);
+  if (!user) {
+    return res
+      .status(401)
+      .json({ status: "fail", message: "User no longer exists" });
+  }
+
+  // Check if user changed password after token was issued
+  if (user.changedPasswordAfter(decoded.iat)) {
+    return res.status(401).json({
+      status: "fail",
+      message: "Password changed. Please log in again",
+    });
+  }
+
+  // Grant access
+  req.user = user;
+  next();
 });
