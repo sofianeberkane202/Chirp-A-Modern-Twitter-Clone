@@ -64,10 +64,63 @@ export const signup = asyncCatch(async (req, res) => {
   });
 });
 
-export const login = async (req, res) => {
-  res.json({ message: "You hit the login endpoint" });
-};
+export const login = asyncCatch(async (req, res) => {
+  const { email, password } = req.body;
 
-export const logout = async (req, res) => {
-  res.json({ message: "You hit the logout endpoint" });
-};
+  // 1️⃣ Validate input
+  if (!email || !password) {
+    return res.status(400).json({
+      status: "fail",
+      message: "Please provide email and password",
+    });
+  }
+
+  // 2️⃣ Check if user exists & include password field
+  const user = await User.findOne({ email }).select("+password");
+
+  // 3️⃣ Validate credentials (Prevent enumeration attacks)
+  if (!user || !(await user.comparePassword(password))) {
+    return res.status(401).json({
+      status: "fail",
+      message: "Invalid email or password", // Generic error for security
+    });
+  }
+
+  // 4️⃣ Generate token & remove password from response
+  const token = generateToken({ id: user._id }, res);
+  user.password = undefined; // Hide password
+
+  // 5️⃣ Send response with token
+  res.status(200).json({
+    status: "success",
+    message: "User logged in successfully",
+    token,
+    data: { user },
+  });
+});
+
+export const logout = asyncCatch(async (req, res) => {
+  // Check if Authorization header exists
+  if (
+    !req.headers.authorization ||
+    !req.headers.authorization.startsWith("Bearer")
+  ) {
+    return res.status(401).json({
+      status: "fail",
+      message: "You are not logged in",
+    });
+  }
+
+  // Clear JWT cookie
+  res.cookie("jwt", "", {
+    httpOnly: true,
+    expires: new Date(0), // Expire immediately
+    sameSite: "strict", // CSRF protection
+    secure: process.env.NODE_ENV === "production", // HTTPS in production
+  });
+
+  res.status(200).json({
+    status: "success",
+    message: "User logged out successfully",
+  });
+});
