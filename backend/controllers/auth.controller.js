@@ -52,7 +52,10 @@ export const signup = asyncCatch(async (req, res) => {
   });
 
   // generate token
-  const token = generateToken({ id: user._id }, res);
+  generateToken({ id: user._id }, res);
+
+  // remove password from response
+  user.password = undefined;
 
   // send response
   res.status(201).json({

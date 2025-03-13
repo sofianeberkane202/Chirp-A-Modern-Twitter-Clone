@@ -40,6 +40,7 @@ const userSchema = new mongoose.Schema(
         message: "Passwords do not match",
       },
     },
+    passwordChangedAt: { type: Date },
     followers: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -77,11 +78,17 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.pre("save", async function (next) {
+  console.log("enter", this.isNew);
   if (!this.isModified("password")) return next();
 
   this.password = await bcrypt.hash(this.password, 12);
-
   this.confirmPassword = undefined;
+
+  // Set passwordChangedAt only when updating password (not on first creation)
+  if (!this.isNew) {
+    this.passwordChangedAt = Date.now() - 1000; // Prevent token issues
+  }
+
   next();
 });
 
