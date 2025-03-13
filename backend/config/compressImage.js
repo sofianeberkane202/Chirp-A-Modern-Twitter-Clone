@@ -1,7 +1,6 @@
 import sharp from "sharp";
 // Middleware to compress images
 const compressImage = async (req, res, next) => {
-  console.log("req.file: ", req.file);
   if (!req.files) return next();
 
   try {
