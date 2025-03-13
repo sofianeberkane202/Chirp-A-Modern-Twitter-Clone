@@ -3,7 +3,7 @@ import { asyncCatch } from "../utils/asyncCatch.js";
 // models
 import User from "../models/user.model.js";
 import Notification from "../models/notification.model.js";
-import path from "path";
+import { uploadToCloudinary, getPublicId } from "../utils/handleUploadImage.js";
 
 export const getAllUsers = asyncCatch(async (req, res) => {
   const users = await User.find();
@@ -120,28 +120,6 @@ export const getSuggestedUsers = asyncCatch(async (req, res) => {
   });
 });
 
-async function uploadToCloudinary(file) {
-  return new Promise((resolve, reject) => {
-    const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: "user_profiles" },
-      (error, result) => {
-        if (error) reject(error);
-        else resolve(result.secure_url);
-      }
-    );
-
-    uploadStream.end(file.buffer); // Upload file buffer
-  });
-}
-
-const getPublicId = (url) => {
-  return url
-    .split("/")
-    .slice(-2) // Extracts last two parts (folder + filename)
-    .join("/")
-    .split(".")[0]; // Removes file extension
-};
-
 export const updateUserProfile = asyncCatch(async (req, res) => {
   const { username, email, password, currentPassword, fullName, bio } =
     req.body;
@@ -190,6 +168,7 @@ export const updateUserProfile = asyncCatch(async (req, res) => {
         console.error("Cloudinary delete error:", error);
       }
     }
+    console.log("profileImg: ", profileImg[0]);
     profileImg = await uploadToCloudinary(profileImg[0]);
   }
 
