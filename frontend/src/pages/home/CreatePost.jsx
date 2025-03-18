@@ -2,8 +2,10 @@ import { CiImageOn } from "react-icons/ci";
 import { BsEmojiSmileFill } from "react-icons/bs";
 import { useRef, useState } from "react";
 import { IoCloseSharp } from "react-icons/io5";
+import { useUserContext } from "../../context/userContext";
 
 const CreatePost = () => {
+  const { user } = useUserContext();
   const [text, setText] = useState("");
   const [img, setImg] = useState(null);
 
@@ -13,7 +15,7 @@ const CreatePost = () => {
   const isError = false;
 
   const data = {
-    profileImg: "/avatars/boy1.png",
+    profileImg: user.profileImg,
   };
 
   const handleSubmit = (e) => {

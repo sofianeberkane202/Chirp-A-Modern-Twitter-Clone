@@ -7,6 +7,7 @@ import { MdOutlineMail } from "react-icons/md";
 import { FaUser } from "react-icons/fa";
 import { MdPassword } from "react-icons/md";
 import { MdDriveFileRenameOutline } from "react-icons/md";
+import useAuth from "../../../hooks/useAuth";
 
 const SignUpPage = () => {
   const [formData, setFormData] = useState({
@@ -14,11 +15,14 @@ const SignUpPage = () => {
     username: "",
     fullName: "",
     password: "",
+    confirmPassword: "",
   });
+
+  const { signUpMutation } = useAuth();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log(formData);
+    signUpMutation.mutate(formData);
   };
 
   const handleInputChange = (e) => {
@@ -83,6 +87,17 @@ const SignUpPage = () => {
               name="password"
               onChange={handleInputChange}
               value={formData.password}
+            />
+          </label>
+          <label className="input input-bordered rounded flex items-center gap-2">
+            <MdPassword />
+            <input
+              type="password"
+              className="grow"
+              placeholder="Confirm Password"
+              name="confirmPassword"
+              onChange={handleInputChange}
+              value={formData.confirmPassword}
             />
           </label>
           <button className="btn rounded-full btn-primary text-white">
