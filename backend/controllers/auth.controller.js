@@ -97,13 +97,12 @@ export const login = asyncCatch(async (req, res) => {
   res.status(200).json({
     status: "success",
     message: "User logged in successfully",
-    token,
     data: { user },
   });
 });
 
 export const logout = asyncCatch(async (req, res) => {
-  res.cookie("jwt", "loggedout", {
+  res.cookie("jwt", "", {
     httpOnly: true,
     expires: new Date(Date.now() + 10 * 1000), // Expires in 10 sec
     sameSite: "strict",

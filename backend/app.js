@@ -1,4 +1,5 @@
 import express from "express";
+import cors from "cors";
 import generateError from "./utils/generateError.js";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.route.js";
@@ -10,6 +11,7 @@ const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(cors());
 
 app.use((req, res, next) => {
   req.requestedAt = new Date().toISOString();
