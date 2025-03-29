@@ -3,27 +3,55 @@ import { BiRepost } from "react-icons/bi";
 import { FaRegHeart } from "react-icons/fa";
 import { FaRegBookmark } from "react-icons/fa6";
 import { FaTrash } from "react-icons/fa";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { usePostMutation } from "../../hooks/usePost";
+import {
+  useCurrentUserProfile,
+  useUserProfile,
+} from "../../hooks/useUserProfile";
+import { formatPostTime } from "../../utils/util";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
 
 const Post = ({ post }) => {
   const [comment, setComment] = useState("");
   const postOwner = post.user;
-  const isLiked = false;
+  const modalRef = useRef(null);
+  const { username } = useParams();
 
-  const isMyPost = true;
+  const { meQuery } = useUserProfile();
+  const { userPofileQuery } = useCurrentUserProfile({
+    username: username || meQuery?.data?.data?.user?.username,
+  });
+  const { commentPostMutation, deletePostMutation, likeOrUnlikeMutation } =
+    usePostMutation({
+      postOwner,
+      modalRef,
+      setComment,
+      me: meQuery?.data.data?.user,
+      currentProfile: userPofileQuery?.data?.data?.profile || {},
+    });
 
-  const formattedDate = "1h";
-
-  const isCommenting = false;
-
-  const handleDeletePost = () => {};
+  const handleDeletePost = () => {
+    deletePostMutation.mutate(post._id);
+  };
 
   const handlePostComment = (e) => {
     e.preventDefault();
+    commentPostMutation.mutate({ postId: post._id, text: comment });
   };
 
-  const handleLikePost = () => {};
+  const handleLikePost = () => {
+    likeOrUnlikeMutation.mutate(post._id);
+  };
+
+  const handleOpen = () => {
+    if (modalRef.current) {
+      modalRef.current.showModal();
+    }
+  };
+  const isMyPost = meQuery.data?.data?.user.username === postOwner.username;
+  const formattedDate = formatPostTime(post.createdAt);
 
   return (
     <>
@@ -50,10 +78,14 @@ const Post = ({ post }) => {
             </span>
             {isMyPost && (
               <span className="flex justify-end flex-1">
-                <FaTrash
-                  className="cursor-pointer hover:text-red-500"
-                  onClick={handleDeletePost}
-                />
+                {deletePostMutation.isPending ? (
+                  <LoadingSpinner />
+                ) : (
+                  <FaTrash
+                    className="cursor-pointer hover:text-red-500"
+                    onClick={handleDeletePost}
+                  />
+                )}
               </span>
             )}
           </div>
@@ -71,11 +103,7 @@ const Post = ({ post }) => {
             <div className="flex gap-4 items-center w-2/3 justify-between">
               <div
                 className="flex gap-1 items-center cursor-pointer group"
-                onClick={() =>
-                  document
-                    .getElementById("comments_modal" + post._id)
-                    .showModal()
-                }
+                onClick={handleOpen}
               >
                 <FaRegComment className="w-4 h-4  text-slate-500 group-hover:text-sky-400" />
                 <span className="text-sm text-slate-500 group-hover:text-sky-400">
@@ -86,6 +114,7 @@ const Post = ({ post }) => {
               <dialog
                 id={`comments_modal${post._id}`}
                 className="modal border-none outline-none"
+                ref={modalRef}
               >
                 <div className="modal-box rounded border border-gray-600">
                   <h3 className="font-bold text-lg mb-4">COMMENTS</h3>
@@ -132,8 +161,8 @@ const Post = ({ post }) => {
                       onChange={(e) => setComment(e.target.value)}
                     />
                     <button className="btn btn-primary rounded-full btn-sm text-white px-4">
-                      {isCommenting ? (
-                        <span className="loading loading-spinner loading-md"></span>
+                      {commentPostMutation.isPending ? (
+                        <LoadingSpinner />
                       ) : (
                         "Post"
                       )}
@@ -154,16 +183,16 @@ const Post = ({ post }) => {
                 className="flex gap-1 items-center group cursor-pointer"
                 onClick={handleLikePost}
               >
-                {!isLiked && (
+                {!likeOrUnlikeMutation.isPending && (
                   <FaRegHeart className="w-4 h-4 cursor-pointer text-slate-500 group-hover:text-pink-500" />
                 )}
-                {isLiked && (
+                {likeOrUnlikeMutation.isPending && (
                   <FaRegHeart className="w-4 h-4 cursor-pointer text-pink-500 " />
                 )}
 
                 <span
                   className={`text-sm text-slate-500 group-hover:text-pink-500 ${
-                    isLiked ? "text-pink-500" : ""
+                    likeOrUnlikeMutation.isPending ? "text-pink-500" : ""
                   }`}
                 >
                   {post.likes.length}
