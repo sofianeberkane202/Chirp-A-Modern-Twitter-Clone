@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      index: true,
     },
     fullName: {
       type: String,
@@ -16,6 +17,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+      index: true,
       validate: {
         validator: (value) => {
           return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -83,6 +85,8 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// userSchema.index({ username: 1 });
 
 userSchema.pre("save", async function (next) {
   console.log("enter", this.isNew);

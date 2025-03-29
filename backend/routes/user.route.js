@@ -9,8 +9,6 @@ import { protect } from "../controllers/auth.controller.js";
 import upload from "../config/multer.js";
 import compressImage from "../config/compressImage.js";
 
-// console.log(upload);
-
 const router = express.Router();
 
 router.get("/profile/:username", protect, getUserProfile);
