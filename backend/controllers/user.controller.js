@@ -6,7 +6,7 @@ import Notification from "../models/notification.model.js";
 import { uploadToCloudinary, getPublicId } from "../utils/handleUploadImage.js";
 
 export const getAllUsers = asyncCatch(async (req, res) => {
-  const users = await User.find();
+  const users = await User.find().limit(10);
 
   res.status(200).json({
     status: "success",
@@ -74,7 +74,6 @@ export const followUnfollowUser = asyncCatch(async (req, res) => {
       type: "follow",
     });
   }
-
   res.status(200).json({
     status: "success",
     message: message,
@@ -84,47 +83,41 @@ export const followUnfollowUser = asyncCatch(async (req, res) => {
 export const getSuggestedUsers = asyncCatch(async (req, res) => {
   const userId = req.user.id;
 
-  const usersFollowedByMe = await User.findById(userId).select("following");
+  // Get the list of users the current user follows
+  const user = await User.findById(userId).select("following");
 
-  console.log(usersFollowedByMe);
-
-  const users = await User.aggregate([
+  // Get 5 random users excluding the current user and users they follow
+  const suggestedUsers = await User.aggregate([
     {
       $match: {
-        _id: { $ne: userId },
+        _id: { $ne: user._id }, // Exclude the current user
+        _id: { $nin: user.following }, // Exclude users the current user follows
       },
     },
+    { $sample: { size: 5 } }, // Get a random selection of 5 users
     {
-      $sample: { size: 10 },
+      $project: {
+        _id: 1,
+        fullName: 1,
+        username: 1,
+        profileImg: 1,
+      },
     },
   ]);
 
-  const filteredUsers = users.filter((user) => {
-    return !usersFollowedByMe.following.includes(user._id);
-  });
-
-  const suggestedUsers = filteredUsers.slice(0, 5).map((user) => {
-    return {
-      _id: user._id,
-      fullName: user.fullName,
-      username: user.username,
-      profileImg: user.profileImg,
-    };
-  });
-
   res.status(200).json({
     status: "success",
-    data: {
-      suggestedUsers,
-    },
+    data: { suggestedUsers },
   });
 });
 
 export const updateUserProfile = asyncCatch(async (req, res) => {
-  const { username, email, password, currentPassword, fullName, bio } =
+  const { username, email, newPassword, currentPassword, fullName, bio, link } =
     req.body;
 
-  let { profileImg, coverImg } = req.files;
+  // let { profileImg, coverImg } = req.files;
+  let profileImg = req.files?.profileImg;
+  let coverImg = req.files?.coverImg;
 
   // Get current user
   const currentUser = await User.findById(req.user.id).select("+password");
@@ -148,7 +141,7 @@ export const updateUserProfile = asyncCatch(async (req, res) => {
 
   // Validate current password if password change is requested
   if (
-    password &&
+    newPassword &&
     (!currentPassword || !(await currentUser.comparePassword(currentPassword)))
   ) {
     return res.status(400).json({
@@ -189,11 +182,12 @@ export const updateUserProfile = asyncCatch(async (req, res) => {
   // Update fields
   if (username) currentUser.username = username;
   if (email) currentUser.email = email;
-  if (password) currentUser.password = password; // Mongoose `pre("save")` will hash it
+  if (newPassword) currentUser.password = newPassword; // Mongoose `pre("save")` will hash it
   if (fullName) currentUser.fullName = fullName;
   if (bio) currentUser.bio = bio;
   if (profileImg) currentUser.profileImg = profileImg;
   if (coverImg) currentUser.coverImg = coverImg;
+  if (link) currentUser.link = link;
 
   await currentUser.save(); // This triggers `pre("save")` middleware
 

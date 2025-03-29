@@ -6,12 +6,12 @@ import { uploadToCloudinary, getPublicId } from "../utils/handleUploadImage.js";
 import cloudinary from "../config/cloudinary.js";
 import Notification from "../models/notification.model.js";
 import User from "../models/user.model.js";
+import APIFeatures from "../utils/APIFeatuers.js";
 
 export const createPost = asyncCatch(async (req, res, next) => {
   const { text } = req.body;
   let { img } = req.files;
   const currentUserId = req.user.id;
-  console.log(currentUserId);
 
   if (!img || !text) {
     return res.status(400).json({
@@ -26,9 +26,7 @@ export const createPost = asyncCatch(async (req, res, next) => {
 
   res.status(200).json({
     status: "success",
-    data: {
-      post,
-    },
+    message: "post created successfully",
   });
 });
 
@@ -54,7 +52,7 @@ export const deletePost = asyncCatch(async (req, res, next) => {
     const publicId = getPublicId(post.img);
     try {
       const result = await cloudinary.uploader.destroy(publicId);
-      console.log("Cloudinary destroy result:", result);
+      // console.log("Cloudinary destroy result:", result);
     } catch (error) {
       console.error("Cloudinary delete error:", error);
     }
@@ -80,6 +78,13 @@ export const commentOnPost = asyncCatch(async (req, res, next) => {
     });
   }
 
+  if (text.trim() === "") {
+    return res.status(400).json({
+      status: "fail",
+      message: "Comment cannot be empty",
+    });
+  }
+
   const post = await Post.findById(id);
 
   if (!post) {
@@ -94,11 +99,16 @@ export const commentOnPost = asyncCatch(async (req, res, next) => {
   post.comments.push(comment._id);
   await post.save();
 
+  // create notification
+  const notification = await Notification.create({
+    from: req.user.id,
+    to: post.user,
+    type: "comment",
+  });
+
   res.status(200).json({
     status: "success",
-    data: {
-      post,
-    },
+    message: "comment created successfully",
   });
 });
 
@@ -129,7 +139,6 @@ export const likeUnlikePost = asyncCatch(async (req, res, next) => {
     return res.status(200).json({
       status: "success",
       message: "Post unliked successfully",
-      data: { post },
     });
   } else {
     post.likes.push(req.user.id);
@@ -145,30 +154,38 @@ export const likeUnlikePost = asyncCatch(async (req, res, next) => {
     return res.status(200).json({
       status: "success",
       message: "Post liked successfully",
-      data: { post, notification },
     });
   }
 });
 
-export const getAllPosts = asyncCatch(async (req, res, next) => {
-  const posts = await Post.find()
-    .populate("user")
-    .populate("comments")
+const populatePostQuery = (query) =>
+  query
+    .populate("user", "username fullName profileImg createdAt")
     .populate({
       path: "comments",
+      select: "text",
       populate: {
         path: "user",
+        select: "profileImg username",
       },
     })
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
+
+export const getAllPosts = asyncCatch(async (req, res, next) => {
+  const query = populatePostQuery(Post.find());
+  const feature = new APIFeatures(query, req.query);
+  feature.pagination();
+
+  const posts = await feature.query;
+  const hasMore = posts.length > 0;
 
   res.status(200).json({
     status: "success",
     length: posts.length,
-
-    data: {
-      posts,
-    },
+    page: Number(req.query.page) || 1,
+    hasMore,
+    data: { posts },
   });
 });
 
@@ -184,19 +201,29 @@ export const getLikedPosts = asyncCatch(async (req, res, next) => {
     });
   }
 
-  const likedPosts = await Post.find({ _id: { $in: user.likePosts } })
-    .populate({
-      path: "user",
-    })
+  const query = Post.find({ _id: { $in: user.likePosts } })
+    .populate("user", "username fullName profileImg createdAt")
     .populate({
       path: "comments",
+      select: "text",
       populate: {
         path: "user",
+        select: "profileImg username",
       },
-    });
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const feature = new APIFeatures(query, req.query);
+  feature.pagination();
+  const likedPosts = await feature.query;
+
+  const hasMore = likedPosts.length > 0;
 
   res.status(200).json({
     status: "success",
+    page: Number(req.query.page) || 1,
+    hasMore,
     data: {
       likedPosts,
     },
@@ -208,52 +235,43 @@ export const getAllFollowingPosts = asyncCatch(async (req, res, next) => {
   const user = await User.findById(currentUserId);
 
   if (!user) {
-    return res.status(404).json({
-      status: "fail",
-      message: "user not found",
-    });
+    return next(new AppError("User not found", 404));
   }
 
-  const followingPosts = await Post.find({
-    user: { $in: user.following },
-  }).sort({ createdAt: -1 });
+  const query = populatePostQuery(Post.find({ user: { $in: user.following } }));
+  const feature = new APIFeatures(query, req.query);
+  feature.pagination();
+
+  const followingPosts = await feature.query;
+  const hasMore = followingPosts.length > 0;
 
   res.status(200).json({
     status: "success",
-    data: {
-      posts: followingPosts,
-    },
+    page: Number(req.query.page) || 1,
+    hasMore,
+    data: { posts: followingPosts },
   });
 });
 
 export const getAllUserPosts = asyncCatch(async (req, res, next) => {
   const { username } = req.params;
-
-  const user = await User.findOne({ username: username });
+  const user = await User.findOne({ username });
 
   if (!user) {
-    return res.status(404).json({
-      status: "fail",
-      message: "user not found",
-    });
+    return next(new AppError("User not found", 404));
   }
 
-  const posts = await Post.find({ user: user._id })
-    .sort({ createdAt: -1 })
-    .populate({
-      path: "user",
-    })
-    .populate({
-      path: "comments",
-      populate: {
-        path: "user",
-      },
-    });
+  const query = populatePostQuery(Post.find({ user: user._id }));
+  const feature = new APIFeatures(query, req.query);
+  feature.pagination();
+
+  const posts = await feature.query;
+  const hasMore = posts.length > 0;
 
   res.status(200).json({
     status: "success",
-    data: {
-      posts,
-    },
+    page: Number(req.query.page) || 1,
+    hasMore,
+    data: { posts },
   });
 });

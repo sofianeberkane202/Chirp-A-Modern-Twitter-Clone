@@ -24,25 +24,25 @@ const generateToken = (userId, res) => {
 export const signup = asyncCatch(async (req, res) => {
   const { fullName, username, email, password, confirmPassword } = req.body;
 
-  // verify if user's username exists
-  const usernameExists = await User.findOne({ username });
+  // Check if username or email already exists in parallel
+  const [usernameExists, emailExists] = await Promise.all([
+    User.findOne({ username }),
+    User.findOne({ email }),
+  ]);
+
   if (usernameExists) {
-    return res.status(400).json({
-      status: "fail",
-      message: "Username is already taken",
-    });
+    return res
+      .status(400)
+      .json({ status: "fail", message: "Username is already taken" });
   }
 
-  // verify if user's email exists
-  const userEmailExists = await User.findOne({ email });
-  if (userEmailExists) {
-    return res.status(400).json({
-      status: "fail",
-      message: "User already exists",
-    });
+  if (emailExists) {
+    return res
+      .status(400)
+      .json({ status: "fail", message: "Email is already registered" });
   }
 
-  // create user
+  // Create new user
   const user = await User.create({
     fullName,
     username,
@@ -51,19 +51,16 @@ export const signup = asyncCatch(async (req, res) => {
     confirmPassword,
   });
 
-  // generate token
+  // Generate authentication token
   generateToken({ id: user._id }, res);
 
-  // remove password from response
-  user.password = undefined;
+  // Exclude password before sending the response
+  const userResponse = { ...user.toObject(), password: undefined };
 
-  // send response
-  res.status(201).json({
+  return res.status(201).json({
     status: "success",
     message: "User created successfully",
-    data: {
-      user,
-    },
+    data: { user: userResponse },
   });
 });
 
@@ -121,7 +118,7 @@ export const getMe = asyncCatch(async (req, res) => {
   res.status(200).json({
     status: "success",
     data: {
-      user: req.user,
+      user,
     },
   });
 });
