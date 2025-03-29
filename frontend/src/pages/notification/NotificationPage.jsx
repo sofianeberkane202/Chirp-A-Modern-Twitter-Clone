@@ -4,33 +4,17 @@ import LoadingSpinner from "../../components/common/LoadingSpinner";
 import { IoSettingsOutline } from "react-icons/io5";
 import { FaUser } from "react-icons/fa";
 import { FaHeart } from "react-icons/fa6";
+import { FaComment } from "react-icons/fa";
+import { useNotification } from "../../hooks/useNotification";
 
 const NotificationPage = () => {
-  const isLoading = false;
-  const notifications = [
-    {
-      _id: "1",
-      from: {
-        _id: "1",
-        username: "johndoe",
-        profileImg: "/avatars/boy2.png",
-      },
-      type: "follow",
-    },
-    {
-      _id: "2",
-      from: {
-        _id: "2",
-        username: "janedoe",
-        profileImg: "/avatars/girl1.png",
-      },
-      type: "like",
-    },
-  ];
+  const { notificationsQuery, deleteNotificationsMutation } = useNotification();
 
   const deleteNotifications = () => {
-    alert("All notifications deleted");
+    deleteNotificationsMutation.mutate();
   };
+
+  const notifications = notificationsQuery?.data?.data?.notifications || [];
 
   return (
     <>
@@ -51,7 +35,7 @@ const NotificationPage = () => {
             </ul>
           </div>
         </div>
-        {isLoading && (
+        {notificationsQuery.isLoading && (
           <div className="flex justify-center h-full items-center">
             <LoadingSpinner size="lg" />
           </div>
@@ -68,6 +52,9 @@ const NotificationPage = () => {
               {notification.type === "like" && (
                 <FaHeart className="w-7 h-7 text-red-500" />
               )}
+              {notification.type === "comment" && (
+                <FaComment className="w-7 h-7 text-primary" />
+              )}
               <Link to={`/profile/${notification.from.username}`}>
                 <div className="avatar">
                   <div className="w-8 rounded-full">
@@ -83,9 +70,9 @@ const NotificationPage = () => {
                   <span className="font-bold">
                     @{notification.from.username}
                   </span>{" "}
-                  {notification.type === "follow"
-                    ? "followed you"
-                    : "liked your post"}
+                  {notification.type === "follow" && "followed you"}
+                  {notification.type === "like" && "liked your post"}
+                  {notification.type === "comment" && "commented on your post"}
                 </div>
               </Link>
             </div>
