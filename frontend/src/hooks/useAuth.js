@@ -13,14 +13,14 @@ function useAuth() {
   const handleAuthSuccess = async (data, message) => {
     loginOrSignup(data.data.user);
     toast.success(message);
-    await queryClient.invalidateQueries({ queryKey: ["me"] }); // Ensure it's awaited
+    await queryClient.invalidateQueries({ queryKey: ["me"] });
     navigate("/");
   };
 
-  // ✅ Helper function to handle errors
+  // ✅ Improved error handling function
   const handleError = (error) => {
-    console.error(error);
-    toast.error(error.response?.data?.message || error.message);
+    console.log("Error:", error);
+    toast.error(error.message || "Something went wrong. Please try again.");
   };
 
   const loginUserMutation = useMutation({
@@ -32,7 +32,7 @@ function useAuth() {
   const signUpMutation = useMutation({
     mutationFn: createUser,
     onSuccess: (data) => handleAuthSuccess(data, "Sign up successful"),
-    onError: handleError,
+    onError: handleError, // ✅ Proper error handling
   });
 
   const logoutMutation = useMutation({
@@ -41,7 +41,7 @@ function useAuth() {
       logout();
       toast.success("Logout successful");
       await queryClient.invalidateQueries({ queryKey: ["me"] });
-      navigate("/login"); // ✅ Redirect to login page after logout
+      navigate("/login");
     },
     onError: handleError,
   });

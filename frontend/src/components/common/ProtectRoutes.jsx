@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import LoadingSpinner from "./LoadingSpinner";
 import { useUserContext } from "../../context/userContext";
 import { Navigate } from "react-router-dom";
-import useUserProfile from "../../hooks/useUserProfile";
+import { useUserProfile } from "../../hooks/useUserProfile";
 
 function ProtectRoutes({ children }) {
   const { loginOrSignup, isAuthenticated } = useUserContext();
@@ -11,8 +11,6 @@ function ProtectRoutes({ children }) {
   const {
     meQuery: { data, isLoading, isError },
   } = useUserProfile();
-
-  console.log(data);
 
   // Sync user context when data is available
   useEffect(() => {

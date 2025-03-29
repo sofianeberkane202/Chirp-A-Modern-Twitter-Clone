@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import LoadingSpinner from "../../../components/common/LoadingSpinner";
 
 import XSvg from "../../../components/svgs/X";
 
@@ -58,7 +59,7 @@ const LoginPage = () => {
             />
           </label>
           <button className="btn rounded-full btn-primary text-white">
-            Login
+            {loginUserMutation.isPending ? <LoadingSpinner /> : "Login"}
           </button>
           {loginUserMutation.isError && (
             <p className="text-red-500">{loginUserMutation.error.message}</p>

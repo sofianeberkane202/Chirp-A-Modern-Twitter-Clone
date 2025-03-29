@@ -1,31 +1,41 @@
 export const createUser = async (userData) => {
-  const response = await fetch("/api/auth/signup", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(userData),
-  });
+  try {
+    const response = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(userData),
+    });
 
-  if (!response.ok) {
-    const errorMessage = await response.text();
-    throw new Error(errorMessage);
+    const data = await response.json(); // Parse JSON response
+
+    if (!response.ok) {
+      throw new Error(data.message || "An unknown error occurred");
+    }
+
+    return data; // Return successful response data
+  } catch (error) {
+    throw new Error(error.message || "Network error"); // Ensure error is always a string
   }
-
-  return response.json();
 };
 
 export const loginUser = async (userData) => {
-  const response = await fetch("/api/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(userData),
-  });
+  try {
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(userData),
+    });
 
-  if (!response.ok) {
-    const errorMessage = await response.json();
-    throw new Error(errorMessage.message);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "An unkown occured");
+    }
+
+    return data;
+  } catch (error) {
+    throw new Error(error.message || "Network error");
   }
-
-  return response.json();
 };
 
 export const logoutUser = async () => {
@@ -37,5 +47,6 @@ export const logoutUser = async () => {
 
 export const getMe = async () => {
   const response = await fetch("/api/auth/me");
-  return response.json();
+  const data = await response.json();
+  return data;
 };

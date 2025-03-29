@@ -2,12 +2,14 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 
 import XSvg from "../../../components/svgs/X";
-
-import { MdOutlineMail } from "react-icons/md";
+import {
+  MdOutlineMail,
+  MdPassword,
+  MdDriveFileRenameOutline,
+} from "react-icons/md";
 import { FaUser } from "react-icons/fa";
-import { MdPassword } from "react-icons/md";
-import { MdDriveFileRenameOutline } from "react-icons/md";
 import useAuth from "../../../hooks/useAuth";
+import LoadingSpinner from "../../../components/common/LoadingSpinner";
 
 const SignUpPage = () => {
   const [formData, setFormData] = useState({
@@ -29,16 +31,14 @@ const SignUpPage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const isError = false;
-
   return (
     <div className="max-w-screen-xl mx-auto flex h-screen px-10">
-      <div className="flex-1 hidden lg:flex items-center  justify-center">
-        <XSvg className=" lg:w-2/3 fill-white" />
+      <div className="flex-1 hidden lg:flex items-center justify-center">
+        <XSvg className="lg:w-2/3 fill-white" />
       </div>
       <div className="flex-1 flex flex-col justify-center items-center">
         <form
-          className="lg:w-2/3  mx-auto md:mx-20 flex gap-4 flex-col"
+          className="lg:w-2/3 mx-auto md:mx-20 flex gap-4 flex-col"
           onSubmit={handleSubmit}
         >
           <XSvg className="w-24 lg:hidden fill-white" />
@@ -52,6 +52,7 @@ const SignUpPage = () => {
               name="email"
               onChange={handleInputChange}
               value={formData.email}
+              required
             />
           </label>
           <div className="flex gap-4 flex-wrap">
@@ -59,11 +60,12 @@ const SignUpPage = () => {
               <FaUser />
               <input
                 type="text"
-                className="grow "
+                className="grow"
                 placeholder="Username"
                 name="username"
                 onChange={handleInputChange}
                 value={formData.username}
+                required
               />
             </label>
             <label className="input input-bordered rounded flex items-center gap-2 flex-1">
@@ -75,6 +77,7 @@ const SignUpPage = () => {
                 name="fullName"
                 onChange={handleInputChange}
                 value={formData.fullName}
+                required
               />
             </label>
           </div>
@@ -87,6 +90,7 @@ const SignUpPage = () => {
               name="password"
               onChange={handleInputChange}
               value={formData.password}
+              required
             />
           </label>
           <label className="input input-bordered rounded flex items-center gap-2">
@@ -98,12 +102,23 @@ const SignUpPage = () => {
               name="confirmPassword"
               onChange={handleInputChange}
               value={formData.confirmPassword}
+              required
             />
           </label>
-          <button className="btn rounded-full btn-primary text-white">
-            Sign up
+          <button
+            className="btn rounded-full btn-primary text-white"
+            type="submit"
+            disabled={signUpMutation.isLoading}
+          >
+            {signUpMutation.isPending ? <LoadingSpinner /> : "Sign up"}
           </button>
-          {isError && <p className="text-red-500">Something went wrong</p>}
+
+          {/* ✅ Show error message dynamically */}
+          {signUpMutation.isError && (
+            <p className="text-red-500">
+              {signUpMutation.error.message || "Something went wrong"}
+            </p>
+          )}
         </form>
         <div className="flex flex-col lg:w-2/3 gap-2 mt-4">
           <p className="text-white text-lg">Already have an account?</p>
@@ -117,4 +132,5 @@ const SignUpPage = () => {
     </div>
   );
 };
+
 export default SignUpPage;
