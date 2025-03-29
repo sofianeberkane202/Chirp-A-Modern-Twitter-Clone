@@ -1,82 +1,164 @@
-import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 
 import Posts from "../../components/common/Posts";
 import ProfileHeaderSkeleton from "../../components/skeletons/ProfileHeaderSkeleton";
 import EditProfileModal from "./EditProfileModal";
 
-import { POSTS } from "../../utils/db/dummy";
-
 import { FaArrowLeft } from "react-icons/fa6";
 import { IoCalendarOutline } from "react-icons/io5";
 import { FaLink } from "react-icons/fa";
 import { MdEdit } from "react-icons/md";
-import { useUserContext } from "../../context/userContext";
+import { useLikedPosts, usePost } from "../../hooks/usePost";
+import {
+  useCurrentUserProfile,
+  useFollowUnfollowUser,
+  useUserProfile,
+} from "../../hooks/useUserProfile";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { editImgProfile } from "../../api/users/users";
+import toast from "react-hot-toast";
+import LoadingSpinner from "../../components/common/LoadingSpinner";
+
+import { useInView } from "react-intersection-observer";
 
 const ProfilePage = () => {
-  const { user } = useUserContext();
+  const { username } = useParams();
+  const { ref, inView } = useInView({ threshold: 0.5 });
 
   const [coverImg, setCoverImg] = useState(null);
   const [profileImg, setProfileImg] = useState(null);
   const [feedType, setFeedType] = useState("posts");
 
+  const [selectedImgCoverFile, setSelectedImgCoverFile] = useState(null);
+  const [selectedImgProfileFile, setSelectedImgProfileFile] = useState(null);
   const coverImgRef = useRef(null);
   const profileImgRef = useRef(null);
 
-  const isLoading = false;
-  const isMyProfile = true;
+  const { meQuery } = useUserProfile();
+  const me = meQuery?.data?.data?.user?.username;
 
-  // const user = {
-  //   _id: "1",
-  //   fullName: "John Doe",
-  //   username: "johndoe",
-  //   profileImg: "/avatars/boy2.png",
-  //   coverImg: "/cover.png",
-  //   bio: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-  //   link: "https://youtube.com/@asaprogrammer_",
-  //   following: ["1", "2", "3"],
-  //   followers: ["1", "2", "3"],
-  // };
+  const { userPofileQuery } = useCurrentUserProfile({ username });
+  const profileUsername = userPofileQuery.data?.data?.profile?.username;
+
+  const { getAllLikedPostsPerPage } = useLikedPosts({
+    username,
+    userPofileQuery,
+  });
+
+  const { postsUserPerPage } = usePost();
+
+  const isForYouFeed = feedType === "posts";
+
+  const postsQuery = isForYouFeed ? postsUserPerPage : getAllLikedPostsPerPage;
+  const isLoading = postsQuery?.isLoading;
+  const hasNextPage = postsQuery?.hasNextPage;
+  const fetchNextPage = postsQuery?.fetchNextPage;
+  const isFetchingNextPage = postsQuery?.isFetchingNextPage;
+  const allLikedPosts =
+    postsQuery?.data?.pages?.flatMap((page) => page.data.likedPosts) || [];
+
+  const allPosts =
+    postsQuery?.data?.pages?.flatMap((page) => page.data.posts) || [];
+
+  const postsData = isForYouFeed ? allPosts : allLikedPosts;
+
+  const { followUnfollowUserMutation } = useFollowUnfollowUser({
+    profileUsername: username,
+    loginUsername: me,
+  });
+
+  const queryClient = useQueryClient();
+  const editProfileImgMutation = useMutation({
+    mutationFn: editImgProfile,
+    onSuccess: (data) => {
+      toast.success("Profile updated successfully", data);
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      queryClient.invalidateQueries({
+        queryKey: ["profile", data.data.user.username],
+      });
+    },
+
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const profile =
+    profileUsername === me
+      ? meQuery?.data?.data?.user
+      : userPofileQuery?.data?.data?.profile;
+
+  const isMyProfile = meQuery?.data?.data?.user?.username === profile?.username;
+
+  function handleFollowUnfollowUser(userId) {
+    followUnfollowUserMutation.mutate(userId);
+  }
+
+  function handleEditProfile() {
+    const formData = new FormData();
+
+    if (selectedImgCoverFile) formData.append("coverImg", selectedImgCoverFile);
+    if (selectedImgProfileFile)
+      formData.append("profileImg", selectedImgProfileFile);
+
+    console.log(formData.get("coverImg")); // Debugging (remove in production)
+
+    editProfileImgMutation.mutate(formData);
+  }
 
   const handleImgChange = (e, state) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      console.log(reader);
-      reader.onload = () => {
-        state === "coverImg" && setCoverImg(reader.result);
-        state === "profileImg" && setProfileImg(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+    const file = e.target.files?.[0]; // Safe access
+
+    if (!file) return;
+
+    const isCover = state === "coverImg";
+    const isProfile = state === "profileImg";
+
+    if (isCover) setSelectedImgCoverFile(file);
+    if (isProfile) setSelectedImgProfileFile(file);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (isCover) setCoverImg(reader.result);
+      if (isProfile) setProfileImg(reader.result);
+    };
+
+    reader.readAsDataURL(file);
   };
+
+  useEffect(() => {
+    if (inView) {
+      fetchNextPage();
+    }
+  }, [inView, fetchNextPage]);
 
   return (
     <>
       <div className="flex-[4_4_0]  border-r border-gray-700 min-h-screen ">
         {/* HEADER */}
         {isLoading && <ProfileHeaderSkeleton />}
-        {!isLoading && !user && (
+        {!isLoading && !profile && (
           <p className="text-center text-lg mt-4">User not found</p>
         )}
         <div className="flex flex-col">
-          {!isLoading && user && (
+          {!isLoading && profile && (
             <>
               <div className="flex gap-10 px-4 py-2 items-center">
                 <Link to="/">
                   <FaArrowLeft className="w-4 h-4" />
                 </Link>
                 <div className="flex flex-col">
-                  <p className="font-bold text-lg">{user?.fullName}</p>
+                  <p className="font-bold text-lg">{profile.fullName}</p>
                   <span className="text-sm text-slate-500">
-                    {POSTS?.length} posts
+                    {postsData?.data?.posts?.length} posts
                   </span>
                 </div>
               </div>
               {/* COVER IMG */}
               <div className="relative group/cover">
                 <img
-                  src={coverImg || user?.coverImg || "/cover.png"}
+                  src={coverImg || profile.coverImg || "/cover.png"}
                   className="h-52 w-full object-cover"
                   alt="cover image"
                 />
@@ -107,7 +189,7 @@ const ProfilePage = () => {
                     <img
                       src={
                         profileImg ||
-                        user?.profileImg ||
+                        profile.profileImg ||
                         "/avatar-placeholder.png"
                       }
                     />
@@ -127,32 +209,40 @@ const ProfilePage = () => {
                 {!isMyProfile && (
                   <button
                     className="btn btn-outline rounded-full btn-sm"
-                    onClick={() => alert("Followed successfully")}
+                    onClick={() => handleFollowUnfollowUser(profile._id)}
                   >
-                    Follow
+                    {meQuery?.data?.data?.user?.following.includes(profile._id)
+                      ? "Following"
+                      : "Follow"}
                   </button>
                 )}
                 {(coverImg || profileImg) && (
                   <button
                     className="btn btn-primary rounded-full btn-sm text-white px-4 ml-2"
-                    onClick={() => alert("Profile updated successfully")}
+                    onClick={handleEditProfile}
                   >
-                    Update
+                    {editProfileImgMutation.isPending ? (
+                      <LoadingSpinner />
+                    ) : (
+                      "Update"
+                    )}
                   </button>
                 )}
               </div>
 
               <div className="flex flex-col gap-4 mt-14 px-4">
                 <div className="flex flex-col">
-                  <span className="font-bold text-lg">{user?.fullName}</span>
-                  <span className="text-sm text-slate-500">
-                    @{user?.username}
+                  <span className="font-bold text-lg">
+                    {userPofileQuery?.data?.data?.profile?.fullName}
                   </span>
-                  <span className="text-sm my-1">{user?.bio}</span>
+                  <span className="text-sm text-slate-500">
+                    @{meQuery?.data?.data?.user?.username}
+                  </span>
+                  <span className="text-sm my-1">{profile?.bio}</span>
                 </div>
 
                 <div className="flex gap-2 flex-wrap">
-                  {user?.link && (
+                  {profile?.link && (
                     <div className="flex gap-1 items-center ">
                       <>
                         <FaLink className="w-3 h-3 text-slate-500" />
@@ -177,13 +267,13 @@ const ProfilePage = () => {
                 <div className="flex gap-2">
                   <div className="flex gap-1 items-center">
                     <span className="font-bold text-xs">
-                      {user?.following.length}
+                      {profile?.following.length}
                     </span>
                     <span className="text-slate-500 text-xs">Following</span>
                   </div>
                   <div className="flex gap-1 items-center">
                     <span className="font-bold text-xs">
-                      {user?.followers.length}
+                      {profile?.followers.length}
                     </span>
                     <span className="text-slate-500 text-xs">Followers</span>
                   </div>
@@ -212,7 +302,12 @@ const ProfilePage = () => {
             </>
           )}
 
-          <Posts />
+          <Posts isLoading={isLoading} posts={postsData} />
+        </div>
+
+        <div className="flex justify-center items-center h-8" ref={ref}>
+          {isFetchingNextPage && <LoadingSpinner />}
+          {!hasNextPage && <p>No more posts</p>}
         </div>
       </div>
     </>

@@ -1,18 +1,28 @@
 import { useState } from "react";
+import { useEditProfile, useUserProfile } from "../../hooks/useUserProfile";
 
 const EditProfileModal = () => {
+  const { meQuery } = useUserProfile();
+  const { editProfileMutation } = useEditProfile();
+  const user = meQuery?.data?.data?.user;
   const [formData, setFormData] = useState({
-    fullName: "",
-    username: "",
-    email: "",
-    bio: "",
-    link: "",
+    fullName: user?.fullName || "",
+    username: user?.username || "",
+    email: user?.email || "",
+    bio: user?.bio || "",
+    link: user?.link || "",
     newPassword: "",
     currentPassword: "",
   });
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log("formData", formData);
+    editProfileMutation.mutate(formData);
   };
 
   return (
@@ -28,13 +38,7 @@ const EditProfileModal = () => {
       <dialog id="edit_profile_modal" className="modal">
         <div className="modal-box border rounded-md border-gray-700 shadow-md">
           <h3 className="font-bold text-lg my-3">Update Profile</h3>
-          <form
-            className="flex flex-col gap-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              alert("Profile updated successfully");
-            }}
-          >
+          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             <div className="flex flex-wrap gap-2">
               <input
                 type="text"
