@@ -5,7 +5,7 @@ import RightPanel from "./RightPanel";
 
 function AppLayout() {
   return (
-    <div className="flex max-w-6xl mx-auto">
+    <div className="grid grid-cols-[auto_1fr_auto] max-w-6xl mx-auto">
       <Sidebar />
 
       <Outlet />

@@ -29,7 +29,7 @@ const HomePage = () => {
           postsQuery.fetchNextPage();
         }
       },
-      { threshold: 1.0 }
+      { threshold: 0.5 }
     );
 
     observer.observe(observerRef.current);
@@ -38,7 +38,7 @@ const HomePage = () => {
   }, [feedType, hasNextPage, isFetchingNextPage, postsQuery]);
 
   return (
-    <div className="flex-[4_4_0] mr-auto border-r border-gray-700 min-h-screen">
+    <div className="w-full mr-auto border-r border-gray-700 min-h-screen">
       {/* Header */}
       <div className="flex w-full border-b border-gray-700">
         {["forYou", "following"].map((type) => (
@@ -65,7 +65,7 @@ const HomePage = () => {
 
       {/* Infinite Scroll Loader */}
       <div
-        className="flex justify-center items-center py-2 h-8"
+        className="flex justify-center items-center py-2 h-8 "
         ref={observerRef}
       >
         {!hasNextPage && <p>No more posts</p>}
