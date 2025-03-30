@@ -27,6 +27,7 @@ export const createPost = asyncCatch(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     message: "post created successfully",
+    data: { post },
   });
 });
 
@@ -40,31 +41,49 @@ export const deletePost = asyncCatch(async (req, res, next) => {
     });
   }
 
-  const post = await Post.findByIdAndDelete(id, { new: true });
-  if (!post) {
-    return res.status(404).json({
-      status: "fail",
-      message: "Post not found",
-    });
-  }
-
-  if (post.img) {
-    const publicId = getPublicId(post.img);
-    try {
-      const result = await cloudinary.uploader.destroy(publicId);
-      // console.log("Cloudinary destroy result:", result);
-    } catch (error) {
-      console.error("Cloudinary delete error:", error);
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    // ✅ Fetch the post before deleting it
+    const post = await Post.findById(id).session(session);
+    if (!post) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({
+        status: "fail",
+        message: "Post not found",
+      });
     }
-  }
 
-  res.status(200).json({
-    status: "success",
-    message: "Post deleted successfully",
-    data: {
-      post,
-    },
-  });
+    // ✅ Delete related comments
+    await Comment.deleteMany({ _id: { $in: post.comments } }).session(session);
+
+    // ✅ Delete the post after deleting its comments
+    await Post.findByIdAndDelete(id).session(session);
+
+    // ✅ Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    // ✅ Delete the image from Cloudinary (outside of the transaction)
+    if (post.img) {
+      const publicId = getPublicId(post.img);
+      try {
+        await cloudinary.uploader.destroy(publicId);
+      } catch (error) {
+        console.error("Cloudinary delete error:", error);
+      }
+    }
+
+    return res.status(200).json({
+      status: "success",
+      message: "Post deleted successfully",
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    next(error);
+  }
 });
 
 export const commentOnPost = asyncCatch(async (req, res, next) => {
