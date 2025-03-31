@@ -81,5 +81,5 @@
 
 ## 🛠 **Project Links**
 
-🔗 **Live Demo:** https://twitter-clone-vsn3.onrender.com  
-📚 **GitHub Repo:** https://github.com/sofianeberkane202/Twitter-Clone
+🔗 **Live Demo:** https://chirp-a-modern-twitter-clone.onrender.com
+📚 **GitHub Repo:** https://github.com/sofianeberkane202/Chirp-A-Modern-Twitter-Clone
