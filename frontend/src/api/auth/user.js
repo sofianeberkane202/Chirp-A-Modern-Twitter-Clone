@@ -1,35 +1,39 @@
+const API_URL = import.meta.env.VITE_API_URL;
+
 export const createUser = async (userData) => {
   try {
-    const response = await fetch("/api/auth/signup", {
+    const response = await fetch(`${API_URL}/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(userData),
-    });
-
-    const data = await response.json(); // Parse JSON response
-
-    if (!response.ok) {
-      throw new Error(data.message || "An unknown error occurred");
-    }
-
-    return data; // Return successful response data
-  } catch (error) {
-    throw new Error(error.message || "Network error"); // Ensure error is always a string
-  }
-};
-
-export const loginUser = async (userData) => {
-  try {
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(userData),
+      credentials: "include", // Ensures cookies are sent
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || "An unkown occured");
+      throw new Error(data.message || "An unknown error occurred");
+    }
+
+    return data;
+  } catch (error) {
+    throw new Error(error.message || "Network error");
+  }
+};
+
+export const loginUser = async (userData) => {
+  try {
+    const response = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(userData),
+      credentials: "include", // Ensures cookies are sent
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "An unknown error occurred");
     }
 
     return data;
@@ -39,14 +43,16 @@ export const loginUser = async (userData) => {
 };
 
 export const logoutUser = async () => {
-  const response = await fetch("/api/auth/logout", {
+  const response = await fetch(`${API_URL}/auth/logout`, {
     method: "POST",
+    credentials: "include", // Ensures cookies are sent
   });
   return response.json();
 };
 
 export const getMe = async () => {
-  const response = await fetch("/api/auth/me");
-  const data = await response.json();
-  return data;
+  const response = await fetch(`${API_URL}/auth/me`, {
+    credentials: "include", // Ensures cookies are sent
+  });
+  return response.json();
 };

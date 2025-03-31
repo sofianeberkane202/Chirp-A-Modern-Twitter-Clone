@@ -97,15 +97,89 @@ export const usePostMutation = ({
   // Delete Post Mutation
   const deletePostMutation = useMutation({
     mutationFn: deletePost,
-    onSuccess: onSuccessHandler("Post deleted successfully"),
-    onError: onErrorHandler,
+
+    onMutate: async (postId) => {
+      const username = me.username;
+      const queryKeys = [
+        ["postsPerpage"],
+        ["likedPostsPerPage", username],
+        ["postsPerPage", username],
+      ];
+
+      // Cancel ongoing queries
+      await Promise.all(
+        queryKeys.map((queryKey) => queryClient.cancelQueries({ queryKey }))
+      );
+
+      // Save previous cache data for rollback
+      const previousCache = Object.fromEntries(
+        queryKeys.map((queryKey) => [
+          queryKey,
+          queryClient.getQueryData(queryKey),
+        ])
+      );
+
+      // Function to optimistically update the cache
+      function updateCache(posts) {
+        return posts.filter((post) => post._id !== postId);
+      }
+
+      // Update all caches optimistically
+      queryKeys.forEach((queryKey) => {
+        queryClient.setQueryData(queryKey, (oldData) => {
+          if (!oldData?.pages) return oldData;
+
+          if (queryKey[0] === "likedPostsPerPage") {
+            return {
+              ...oldData,
+              pages: oldData.pages.map((page) => ({
+                ...page,
+                data: {
+                  ...page.data,
+                  likedPosts: updateCache(page.data.likedPosts || []),
+                },
+              })),
+            };
+          }
+
+          return {
+            ...oldData,
+            pages: oldData.pages.map((page) => ({
+              ...page,
+              data: {
+                ...page.data,
+                posts: updateCache(page.data.posts || []),
+              },
+            })),
+          };
+        });
+      });
+
+      return { previousCache };
+    },
+
+    onSuccess: () => onSuccessHandler("Post deleted successfully")(),
+
+    onError: (error, postId, context) => {
+      console.error("Error deleting post:", error);
+      if (!context?.previousCache) return;
+
+      // Rollback: Restore previous cache data
+      Object.entries(context.previousCache).forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+
+      onErrorHandler(error);
+    },
   });
 
   // Comment on Post Mutation
   const commentPostMutation = useMutation({
     mutationFn: commentOnPost,
 
-    onMutate: (commentData) => {
+    onMutate: (comment) => {
+      const commentData = { _id: Date.now().toString(), ...comment };
+      console.log("commentData", commentData);
       const username = currentProfile?.username || me?.username;
 
       const queryKeys = [

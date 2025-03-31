@@ -6,6 +6,7 @@ import { useUserContext } from "../../context/userContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { shareNewPost } from "../../api/posts/posts";
 import { toast } from "react-hot-toast";
+import { useUserProfile } from "../../hooks/useUserProfile";
 
 const CreatePost = () => {
   const queryClient = useQueryClient();
@@ -15,20 +16,116 @@ const CreatePost = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const imgRef = useRef(null);
 
+  const { meQuery } = useUserProfile();
+  const meData = meQuery?.data?.data?.user;
+  const me = {
+    _id: meData?._id,
+    username: meData?.username,
+    profileImg: meData?.profileImg,
+    fullName: meData?.fullName,
+    createdAt: meData?.createdAt,
+  };
+
+  function reset() {
+    setText("");
+    setImagePreview(null);
+    setSelectedFile(null);
+    imgRef.current.value = null;
+  }
+
   const sharePostMutation = useMutation({
     mutationFn: shareNewPost,
-    onSuccess: (data) => {
-      console.log("Post shared successfully:", data);
-      setText(""); // Clear text field after post
-      setImagePreview(null); // Clear image preview
-      setSelectedFile(null); // Clear file state
-      imgRef.current.value = null; // Reset file input
-      queryClient.invalidateQueries({ queryKey: ["posts"] });
-      queryClient.invalidateQueries({ queryKey: ["profile", user.username] });
+
+    onMutate: async (formData) => {
+      await queryClient.cancelQueries({ queryKey: ["postsPerpage"] });
+
+      const previousData = queryClient.getQueryData(["postsPerpage"]);
+
+      // Extract text and file from formData
+      const text = formData.get("text");
+      const file = formData.get("img");
+
+      // 🔹 Generate a temporary image preview URL (if a file is provided)
+      const tempImageUrl = file ? URL.createObjectURL(file) : null;
+
+      // 🔹 Create a temporary post for optimistic UI
+      const tempPost = {
+        _id: Date.now().toString(), // Temporary unique ID
+        text,
+        img: tempImageUrl, // Temporary image URL
+        user: me, // Assuming `me` contains user data
+        createdAt: new Date().toISOString(),
+        likes: [],
+        comments: [],
+      };
+
+      queryClient.setQueryData(["postsPerpage"], (oldData) => {
+        if (!oldData?.pages) return oldData;
+
+        return {
+          ...oldData,
+          pages: [
+            {
+              ...oldData.pages[0],
+              data: {
+                ...oldData.pages[0].data,
+                posts: [tempPost, ...oldData.pages[0].data.posts],
+              },
+            },
+            ...oldData.pages.slice(1),
+          ],
+        };
+      });
+
+      reset();
+
+      return { previousData, tempPost };
     },
-    onError: (error) => {
+
+    onSuccess: (postData, _, context) => {
+      console.log("Post shared successfully:", postData);
+      const data = postData.data;
+
+      // 🔹 Replace the temporary post with the actual post (including real Cloudinary URL)
+      queryClient.setQueryData(["postsPerpage"], (oldData) => {
+        if (!oldData?.pages) return oldData;
+
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page) => ({
+            ...page,
+            data: {
+              ...page.data,
+              posts: page.data.posts.map((post) =>
+                post._id === context.tempPost._id
+                  ? { ...data.post, img: data.post.img } // Replace temp with actual data
+                  : post
+              ),
+            },
+          })),
+        };
+      });
+
+      // queryClient.refetchQueries({ queryKey: ["postsPerpage"], exact: true });
+      queryClient.invalidateQueries({ queryKey: ["postsPerpage"] });
+      queryClient.invalidateQueries({
+        queryKey: ["postsPerPage", me?.username],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["likedPostsPerPage", me?.username],
+      });
+
+      toast.success("Post shared successfully");
+    },
+
+    onError: (error, _, context) => {
       console.error("Error sharing post:", error);
       toast.error(error.message || "Something went wrong. Please try again.");
+
+      // 🔹 Rollback cache if the mutation fails
+      if (context?.previousData) {
+        queryClient.setQueryData(["postsPerpage"], context.previousData);
+      }
     },
   });
 

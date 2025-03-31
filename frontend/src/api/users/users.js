@@ -1,5 +1,10 @@
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+
 export async function getUserProfile(username) {
-  const response = await fetch(`/api/users/profile/${username}`);
+  const response = await fetch(`${API_BASE_URL}/users/profile/${username}`, {
+    credentials: "include",
+  });
 
   if (!response.ok) {
     const errorMessage = await response.text();
@@ -10,7 +15,9 @@ export async function getUserProfile(username) {
 }
 
 export async function getSuggestedUsers() {
-  const response = await fetch("/api/users/suggested");
+  const response = await fetch(`${API_BASE_URL}/users/suggested`, {
+    credentials: "include",
+  });
 
   if (!response.ok) {
     const errorMessage = await response.text();
@@ -22,13 +29,14 @@ export async function getSuggestedUsers() {
 
 export async function followUnfollowUser(userId) {
   try {
-    const response = await fetch(`/api/users/follow/${userId}`, {
+    const response = await fetch(`${API_BASE_URL}/users/follow/${userId}`, {
       method: "POST",
+      credentials: "include",
     });
 
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.message || "Unknown erorr occured");
+      throw new Error(data.message || "Unknown error occurred");
     }
     console.log("data", data);
     return data;
@@ -40,15 +48,16 @@ export async function followUnfollowUser(userId) {
 export async function editProfile(newProfileData) {
   console.log("newProfileData", newProfileData.coverImg);
   try {
-    const response = await fetch(`/api/users/update`, {
+    const response = await fetch(`${API_BASE_URL}/users/update`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newProfileData),
+      credentials: "include",
     });
 
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.message || "Unknown erorr occured");
+      throw new Error(data.message || "Unknown error occurred");
     }
     console.log("data", data);
     return data;
@@ -64,14 +73,15 @@ export async function editImgProfile(newProfileData) {
     newProfileData.get("profileImg")
   );
   try {
-    const response = await fetch(`/api/users/update`, {
+    const response = await fetch(`${API_BASE_URL}/users/update`, {
       method: "PUT",
       body: newProfileData,
+      credentials: "include",
     });
 
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data.message || "Unknown erorr occured");
+      throw new Error(data.message || "Unknown error occurred");
     }
     console.log("data", data);
     return data;
