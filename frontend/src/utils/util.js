@@ -12,3 +12,8 @@ export const formatPostTime = (createdAt) => {
 
   return format(postDate, "MMM dd, yyyy");
 };
+
+export const formatDate = (date) => {
+  // format date to "MMM yyyy" like this: "May 2023"
+  return format(date, "MMM yyyy");
+};

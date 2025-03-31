@@ -21,6 +21,7 @@ import toast from "react-hot-toast";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
 
 import { useInView } from "react-intersection-observer";
+import { formatDate } from "../../utils/util";
 
 const ProfilePage = () => {
   const { username } = useParams();
@@ -72,11 +73,22 @@ const ProfilePage = () => {
   const editProfileImgMutation = useMutation({
     mutationFn: editImgProfile,
     onSuccess: (data) => {
+      const queryKeys = [
+        ["me"],
+        ["profile", data.data.user.username],
+        ["postsPerpage"],
+        ["postsPerPage", data.data.user.username],
+        ["likedPostsPerPage", data.data.user.username],
+        ["followingPostsPerPage"],
+        ["suggested-users"],
+      ];
+
       toast.success("Profile updated successfully", data);
-      queryClient.invalidateQueries({ queryKey: ["me"] });
-      queryClient.invalidateQueries({
-        queryKey: ["profile", data.data.user.username],
-      });
+
+      // 🔹 Use Promise.all to run all invalidations in parallel
+      Promise.all(
+        queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key }))
+      ).catch((error) => console.error("Error invalidating queries:", error));
     },
 
     onError: (error) => {
@@ -101,8 +113,6 @@ const ProfilePage = () => {
     if (selectedImgCoverFile) formData.append("coverImg", selectedImgCoverFile);
     if (selectedImgProfileFile)
       formData.append("profileImg", selectedImgProfileFile);
-
-    console.log(formData.get("coverImg")); // Debugging (remove in production)
 
     editProfileImgMutation.mutate(formData);
   }
@@ -132,7 +142,6 @@ const ProfilePage = () => {
       fetchNextPage();
     }
   }, [inView, fetchNextPage]);
-
   return (
     <>
       <div className="flex-[4_4_0]  border-r border-gray-700 min-h-screen ">
@@ -151,7 +160,7 @@ const ProfilePage = () => {
                 <div className="flex flex-col">
                   <p className="font-bold text-lg">{profile.fullName}</p>
                   <span className="text-sm text-slate-500">
-                    {postsData?.data?.posts?.length} posts
+                    {postsData?.length} posts
                   </span>
                 </div>
               </div>
@@ -260,7 +269,7 @@ const ProfilePage = () => {
                   <div className="flex gap-2 items-center">
                     <IoCalendarOutline className="w-4 h-4 text-slate-500" />
                     <span className="text-sm text-slate-500">
-                      Joined July 2021
+                      {formatDate(profile?.createdAt)}
                     </span>
                   </div>
                 </div>
