@@ -1,11 +1,19 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
-import HomePage from "./pages/home/HomePage";
-import SignUpPage from "./pages/auth/signup/SignUpPage";
-import LoginPage from "./pages/auth/login/LoginPage";
-import NotificationPage from "./pages/notification/NotificationPage";
-import Profile from "./pages/profile/ProfilePage";
-import AppLayout from "./components/common/AppLayout";
+import { lazy, Suspense } from "react";
 import ProtectRoutes from "./components/common/ProtectRoutes";
+import AppLayout from "./components/common/AppLayout";
+import LoadingSpinner from "./components/common/LoadingSpinner";
+
+// Lazy Load Pages
+const HomePage = lazy(() => import("./pages/home/HomePage"));
+const SignUpPage = lazy(() => import("./pages/auth/signup/SignUpPage"));
+const LoginPage = lazy(() => import("./pages/auth/login/LoginPage"));
+const NotificationPage = lazy(() =>
+  import("./pages/notification/NotificationPage")
+);
+const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
+
+// const Loading = <div>Loading...</div>; // Replace with a better loader if needed
 
 const router = createBrowserRouter([
   {
@@ -18,25 +26,75 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <HomePage />,
+        element: (
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center">
+                <LoadingSpinner />
+              </div>
+            }
+          >
+            <HomePage />
+          </Suspense>
+        ),
       },
       {
         path: "notifications",
-        element: <NotificationPage />,
+        element: (
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center">
+                <LoadingSpinner />
+              </div>
+            }
+          >
+            <NotificationPage />
+          </Suspense>
+        ),
       },
       {
         path: "profile/:username",
-        element: <Profile />,
+        element: (
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center">
+                <LoadingSpinner />
+              </div>
+            }
+          >
+            <ProfilePage />
+          </Suspense>
+        ),
       },
     ],
   },
   {
     path: "/signup",
-    element: <SignUpPage />,
+    element: (
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        }
+      >
+        <SignUpPage />
+      </Suspense>
+    ),
   },
   {
     path: "/login",
-    element: <LoginPage />,
+    element: (
+      <Suspense
+        fallback={
+          <div className="flex items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        }
+      >
+        <LoginPage />
+      </Suspense>
+    ),
   },
   {
     path: "*",
